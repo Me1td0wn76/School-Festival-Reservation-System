@@ -1,0 +1,753 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="スタッフ管理画面 - 学校祭予約システム">
+	<main>
+		<div class="container">
+			<header>
+				<h1>📊 スタッフ管理画面</h1>
+				<p>予約の確認・管理を行えます</p>
+			</header>
+
+			<!-- ログイン画面 -->
+			<div id="loginForm" class="login-form">
+				<h2>🔐 スタッフ認証</h2>
+				<form id="staffLogin">
+					<div class="form-group">
+						<label for="password">パスワード</label>
+						<input type="password" id="password" name="password" required placeholder="スタッフ用パスワードを入力">
+					</div>
+					<button type="submit" class="login-btn">ログイン</button>
+				</form>
+			</div>
+
+			<!-- 管理画面メイン -->
+			<div id="dashboard" class="dashboard hidden">
+				<div class="dashboard-header">
+					<h2>予約管理ダッシュボード</h2>
+					<div class="actions">
+						<button id="refreshBtn" class="refresh-btn">🔄 更新</button>
+						<button id="logoutBtn" class="logout-btn">ログアウト</button>
+					</div>
+				</div>
+
+				<!-- 統計情報 -->
+				<div id="stats" class="stats-grid">
+					<!-- 統計カードが動的に挿入されます -->
+				</div>
+
+				<!-- 予約一覧 -->
+				<div class="reservations-section">
+					<h3>📋 予約一覧</h3>
+					<div class="filters">
+						<select id="statusFilter">
+							<option value="all">すべて</option>
+							<option value="active">有効</option>
+							<option value="cancelled">キャンセル</option>
+						</select>
+						<select id="menuFilter">
+							<option value="all">すべてのメニュー</option>
+						</select>
+						<select id="timeFilter">
+							<option value="all">すべての時間帯</option>
+						</select>
+					</div>
+					<div id="reservationsList" class="reservations-list">
+						<!-- 予約リストが動的に挿入されます -->
+					</div>
+				</div>
+			</div>
+
+			<div id="loading" class="loading hidden">
+				<div class="spinner"></div>
+				<p>読み込み中...</p>
+			</div>
+
+			<div id="error" class="error hidden"></div>
+		</div>
+	</main>
+
+	<script>
+		interface Reservation {
+			id: string;
+			name: string;
+			phone: string;
+			email?: string;
+			people: string;
+			menu: string;
+			time: string;
+			notes?: string;
+			createdAt: string;
+			status: 'active' | 'cancelled';
+		}
+
+		interface Stats {
+			total: number;
+			active: number;
+			cancelled: number;
+			byMenu: Record<string, number>;
+			byTime: Record<string, number>;
+		}
+
+		let currentPassword = '';
+		let reservationsData: Reservation[] = [];
+		let statsData: Stats = {
+			total: 0,
+			active: 0,
+			cancelled: 0,
+			byMenu: {},
+			byTime: {}
+		};
+
+		// ログイン処理
+		document.getElementById('staffLogin')?.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const formData = new FormData(e.target as HTMLFormElement);
+			const password = formData.get('password') as string;
+			
+			await login(password);
+		});
+
+		// ログアウト処理
+		document.getElementById('logoutBtn')?.addEventListener('click', () => {
+			logout();
+		});
+
+		// 更新処理
+		document.getElementById('refreshBtn')?.addEventListener('click', () => {
+			loadReservations();
+		});
+
+		// フィルター処理
+		['statusFilter', 'menuFilter', 'timeFilter'].forEach(id => {
+			document.getElementById(id)?.addEventListener('change', () => {
+				filterReservations();
+			});
+		});
+
+		async function login(password: string) {
+			showLoading(true);
+			
+			try {
+				const response = await fetch(`/api/list?password=${encodeURIComponent(password)}`);
+				const data = await response.json();
+				
+				if (response.ok) {
+					currentPassword = password;
+					reservationsData = data.reservations;
+					statsData = data.stats;
+					
+					showLoginForm(false);
+					showDashboard(true);
+					updateStats();
+					populateFilters();
+					renderReservations();
+				} else {
+					showError(data.error || 'ログインに失敗しました');
+				}
+			} catch (error) {
+				showError('ログイン処理中にエラーが発生しました');
+			} finally {
+				showLoading(false);
+			}
+		}
+
+		function logout() {
+			currentPassword = '';
+			reservationsData = [];
+			statsData = {
+				total: 0,
+				active: 0,
+				cancelled: 0,
+				byMenu: {},
+				byTime: {}
+			};
+			
+			showDashboard(false);
+			showLoginForm(true);
+			showError('', false);
+			
+			// フォームをリセット
+			(document.getElementById('staffLogin') as HTMLFormElement)?.reset();
+		}
+
+		async function loadReservations() {
+			if (!currentPassword) return;
+			
+			showLoading(true);
+			
+			try {
+				const response = await fetch(`/api/list?password=${encodeURIComponent(currentPassword)}`);
+				const data = await response.json();
+				
+				if (response.ok) {
+					reservationsData = data.reservations;
+					statsData = data.stats;
+					updateStats();
+					populateFilters();
+					renderReservations();
+				} else {
+					showError(data.error || 'データの取得に失敗しました');
+				}
+			} catch (error) {
+				showError('データ取得中にエラーが発生しました');
+			} finally {
+				showLoading(false);
+			}
+		}
+
+		async function cancelReservation(reservationId: string) {
+			if (!confirm('この予約をキャンセルしますか？')) return;
+			
+			showLoading(true);
+			
+			try {
+				const response = await fetch('/api/list', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						action: 'cancel',
+						reservationId,
+						password: currentPassword
+					}),
+				});
+				
+				const data = await response.json();
+				
+				if (response.ok) {
+					await loadReservations(); // データを再読み込み
+				} else {
+					showError(data.error || 'キャンセル処理に失敗しました');
+				}
+			} catch (error) {
+				showError('キャンセル処理中にエラーが発生しました');
+			} finally {
+				showLoading(false);
+			}
+		}
+
+		function updateStats() {
+			const statsContainer = document.getElementById('stats');
+			if (!statsContainer) return;
+			
+			statsContainer.innerHTML = `
+				<div class="stat-card">
+					<h4>📊 総予約数</h4>
+					<div class="stat-number">${statsData?.total || 0}</div>
+				</div>
+				<div class="stat-card">
+					<h4>✅ 有効予約</h4>
+					<div class="stat-number active">${statsData?.active || 0}</div>
+				</div>
+				<div class="stat-card">
+					<h4>❌ キャンセル</h4>
+					<div class="stat-number cancelled">${statsData?.cancelled || 0}</div>
+				</div>
+				<div class="stat-card">
+					<h4>🍽️ 人気メニュー</h4>
+					<div class="stat-text">${getTopMenu()}</div>
+				</div>
+			`;
+		}
+
+		function getTopMenu() {
+			if (!statsData?.byMenu || Object.keys(statsData.byMenu).length === 0) {
+				return 'データなし';
+			}
+			
+			const topMenu = Object.entries(statsData.byMenu)
+				.sort(([,a], [,b]) => (b as number) - (a as number))[0];
+			
+			const menuNames: Record<string, string> = {
+				yakisoba: '焼きそば',
+				takoyaki: 'たこ焼き',
+				karaage: 'からあげ',
+				yakitori: '焼き鳥',
+				drink: '飲み物セット'
+			};
+			
+			return `${menuNames[topMenu[0]] || topMenu[0]} (${topMenu[1]}件)`;
+		}
+
+		function populateFilters() {
+			const menuFilter = document.getElementById('menuFilter') as HTMLSelectElement;
+			const timeFilter = document.getElementById('timeFilter') as HTMLSelectElement;
+			
+			if (menuFilter) {
+				menuFilter.innerHTML = '<option value="all">すべてのメニュー</option>';
+				Object.keys(statsData?.byMenu || {}).forEach(menu => {
+					const menuNames: Record<string, string> = {
+						yakisoba: '焼きそば',
+						takoyaki: 'たこ焼き',
+						karaage: 'からあげ',
+						yakitori: '焼き鳥',
+						drink: '飲み物セット'
+					};
+					menuFilter.innerHTML += `<option value="${menu}">${menuNames[menu] || menu}</option>`;
+				});
+			}
+			
+			if (timeFilter) {
+				timeFilter.innerHTML = '<option value="all">すべての時間帯</option>';
+				Object.keys(statsData?.byTime || {}).forEach(time => {
+					timeFilter.innerHTML += `<option value="${time}">${time}</option>`;
+				});
+			}
+		}
+
+		function filterReservations() {
+			const statusFilter = (document.getElementById('statusFilter') as HTMLSelectElement).value;
+			const menuFilter = (document.getElementById('menuFilter') as HTMLSelectElement).value;
+			const timeFilter = (document.getElementById('timeFilter') as HTMLSelectElement).value;
+			
+			let filtered = reservationsData;
+			
+			if (statusFilter !== 'all') {
+				filtered = filtered.filter(r => r.status === statusFilter);
+			}
+			
+			if (menuFilter !== 'all') {
+				filtered = filtered.filter(r => r.menu === menuFilter);
+			}
+			
+			if (timeFilter !== 'all') {
+				filtered = filtered.filter(r => r.time === timeFilter);
+			}
+			
+			renderReservations(filtered);
+		}
+
+		function renderReservations(reservations = reservationsData) {
+			const container = document.getElementById('reservationsList');
+			if (!container) return;
+			
+			if (reservations.length === 0) {
+				container.innerHTML = '<div class="no-data">予約データがありません</div>';
+				return;
+			}
+			
+			const menuNames: Record<string, string> = {
+				yakisoba: '焼きそば',
+				takoyaki: 'たこ焼き',
+				karaage: 'からあげ',
+				yakitori: '焼き鳥',
+				drink: '飲み物セット'
+			};
+			
+			container.innerHTML = reservations.map(reservation => `
+				<div class="reservation-card ${reservation.status}">
+					<div class="reservation-header">
+						<div class="reservation-id">ID: ${reservation.id.substring(0, 8)}...</div>
+						<div class="reservation-status status-${reservation.status}">
+							${reservation.status === 'active' ? '有効' : 'キャンセル'}
+						</div>
+					</div>
+					<div class="reservation-body">
+						<div class="reservation-info">
+							<strong>👤 ${reservation.name}</strong>
+							<div>📞 ${reservation.phone}</div>
+							${reservation.email ? `<div>📧 ${reservation.email}</div>` : ''}
+							<div>👥 ${reservation.people}名</div>
+							<div>🍽️ ${menuNames[reservation.menu] || reservation.menu}</div>
+							<div>⏰ ${reservation.time}</div>
+							${reservation.notes ? `<div>📝 ${reservation.notes}</div>` : ''}
+							<div class="reservation-date">📅 ${new Date(reservation.createdAt).toLocaleString('ja-JP')}</div>
+						</div>
+						${reservation.status === 'active' ? `
+							<div class="reservation-actions">
+								<button onclick="cancelReservation('${reservation.id}')" class="cancel-btn">
+									キャンセル
+								</button>
+							</div>
+						` : ''}
+					</div>
+				</div>
+			`).join('');
+		}
+
+		function showLoginForm(show: boolean) {
+			const element = document.getElementById('loginForm');
+			if (element) {
+				element.classList.toggle('hidden', !show);
+			}
+		}
+
+		function showDashboard(show: boolean) {
+			const element = document.getElementById('dashboard');
+			if (element) {
+				element.classList.toggle('hidden', !show);
+			}
+		}
+
+		function showLoading(show: boolean) {
+			const element = document.getElementById('loading');
+			if (element) {
+				element.classList.toggle('hidden', !show);
+			}
+		}
+
+		function showError(message: string, show: boolean = true) {
+			const element = document.getElementById('error');
+			if (element) {
+				element.textContent = message;
+				element.classList.toggle('hidden', !show);
+			}
+		}
+
+		// グローバル関数として定義（HTMLから呼び出すため）
+		(window as any).cancelReservation = cancelReservation;
+	</script>
+
+	<style>
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem;
+		}
+
+		header {
+			text-align: center;
+			margin-bottom: 2rem;
+		}
+
+		header h1 {
+			color: #1f2937;
+			font-size: 2.5rem;
+			margin-bottom: 0.5rem;
+		}
+
+		header p {
+			color: #6b7280;
+			font-size: 1.1rem;
+		}
+
+		.login-form {
+			max-width: 400px;
+			margin: 0 auto;
+			background: white;
+			padding: 2rem;
+			border-radius: 12px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		}
+
+		.login-form h2 {
+			text-align: center;
+			margin-bottom: 1.5rem;
+			color: #1f2937;
+		}
+
+		.form-group {
+			margin-bottom: 1.5rem;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 0.5rem;
+			font-weight: 600;
+			color: #374151;
+		}
+
+		input, select {
+			width: 100%;
+			padding: 0.75rem;
+			border: 2px solid #e5e7eb;
+			border-radius: 8px;
+			font-size: 1rem;
+			transition: border-color 0.2s;
+		}
+
+		input:focus, select:focus {
+			outline: none;
+			border-color: #3b82f6;
+		}
+
+		.login-btn, .refresh-btn, .logout-btn {
+			padding: 0.75rem 1.5rem;
+			border: none;
+			border-radius: 8px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background-color 0.2s;
+		}
+
+		.login-btn {
+			width: 100%;
+			background: #3b82f6;
+			color: white;
+			font-size: 1.1rem;
+		}
+
+		.login-btn:hover {
+			background: #2563eb;
+		}
+
+		.dashboard {
+			background: white;
+			padding: 2rem;
+			border-radius: 12px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		}
+
+		.dashboard-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 2rem;
+			padding-bottom: 1rem;
+			border-bottom: 2px solid #e5e7eb;
+		}
+
+		.dashboard-header h2 {
+			color: #1f2937;
+			margin: 0;
+		}
+
+		.actions {
+			display: flex;
+			gap: 1rem;
+		}
+
+		.refresh-btn {
+			background: #10b981;
+			color: white;
+		}
+
+		.refresh-btn:hover {
+			background: #059669;
+		}
+
+		.logout-btn {
+			background: #ef4444;
+			color: white;
+		}
+
+		.logout-btn:hover {
+			background: #dc2626;
+		}
+
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			gap: 1rem;
+			margin-bottom: 2rem;
+		}
+
+		.stat-card {
+			background: #f9fafb;
+			padding: 1.5rem;
+			border-radius: 8px;
+			text-align: center;
+			border: 2px solid #e5e7eb;
+		}
+
+		.stat-card h4 {
+			margin: 0 0 0.5rem 0;
+			color: #6b7280;
+			font-size: 0.9rem;
+		}
+
+		.stat-number {
+			font-size: 2rem;
+			font-weight: bold;
+			color: #1f2937;
+		}
+
+		.stat-number.active {
+			color: #10b981;
+		}
+
+		.stat-number.cancelled {
+			color: #ef4444;
+		}
+
+		.stat-text {
+			font-size: 1.1rem;
+			font-weight: 600;
+			color: #3b82f6;
+		}
+
+		.reservations-section h3 {
+			color: #1f2937;
+			margin-bottom: 1rem;
+		}
+
+		.filters {
+			display: flex;
+			gap: 1rem;
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.filters select {
+			min-width: 150px;
+		}
+
+		.reservations-list {
+			max-height: 600px;
+			overflow-y: auto;
+		}
+
+		.reservation-card {
+			border: 2px solid #e5e7eb;
+			border-radius: 8px;
+			margin-bottom: 1rem;
+			padding: 1rem;
+			transition: border-color 0.2s;
+		}
+
+		.reservation-card.active {
+			border-color: #10b981;
+		}
+
+		.reservation-card.cancelled {
+			border-color: #ef4444;
+			opacity: 0.7;
+		}
+
+		.reservation-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 1rem;
+		}
+
+		.reservation-id {
+			font-family: monospace;
+			color: #6b7280;
+			font-size: 0.9rem;
+		}
+
+		.reservation-status {
+			padding: 0.25rem 0.75rem;
+			border-radius: 20px;
+			font-size: 0.8rem;
+			font-weight: 600;
+		}
+
+		.status-active {
+			background: #d1fae5;
+			color: #065f46;
+		}
+
+		.status-cancelled {
+			background: #fee2e2;
+			color: #991b1b;
+		}
+
+		.reservation-body {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+		}
+
+		.reservation-info {
+			flex: 1;
+		}
+
+		.reservation-info div {
+			margin-bottom: 0.5rem;
+			color: #374151;
+		}
+
+		.reservation-date {
+			color: #6b7280;
+			font-size: 0.9rem;
+			margin-top: 1rem;
+		}
+
+		.reservation-actions {
+			margin-left: 1rem;
+		}
+
+		.cancel-btn {
+			background: #ef4444;
+			color: white;
+			border: none;
+			padding: 0.5rem 1rem;
+			border-radius: 6px;
+			cursor: pointer;
+			font-size: 0.9rem;
+		}
+
+		.cancel-btn:hover {
+			background: #dc2626;
+		}
+
+		.loading {
+			text-align: center;
+			padding: 2rem;
+		}
+
+		.spinner {
+			width: 40px;
+			height: 40px;
+			margin: 0 auto 1rem;
+			border: 4px solid #e5e7eb;
+			border-top: 4px solid #3b82f6;
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		.error {
+			background: #fee2e2;
+			color: #991b1b;
+			padding: 1rem;
+			border-radius: 8px;
+			margin: 1rem 0;
+			text-align: center;
+		}
+
+		.no-data {
+			text-align: center;
+			color: #6b7280;
+			padding: 2rem;
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		body {
+			background: #f3f4f6;
+			min-height: 100vh;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		}
+
+		@media (max-width: 768px) {
+			.dashboard-header {
+				flex-direction: column;
+				gap: 1rem;
+				align-items: stretch;
+			}
+
+			.actions {
+				justify-content: center;
+			}
+
+			.stats-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.filters {
+				flex-direction: column;
+			}
+
+			.reservation-body {
+				flex-direction: column;
+			}
+
+			.reservation-actions {
+				margin-left: 0;
+				margin-top: 1rem;
+			}
+		}
+	</style>
+</Layout>

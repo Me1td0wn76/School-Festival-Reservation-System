@@ -1,0 +1,258 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="学校祭予約システム">
+	<main>
+		<div class="container">
+			<header>
+				<h1>🎪 学校祭 食事予約システム</h1>
+				<p>お食事の予約をお取りいたします。下記フォームにご記入ください。</p>
+			</header>
+
+			<form id="reservationForm" class="reservation-form">
+				<div class="form-group">
+					<label for="name">お名前 *</label>
+					<input type="text" id="name" name="name" required>
+				</div>
+
+				<div class="form-group">
+					<label for="phone">電話番号 *</label>
+					<input type="tel" id="phone" name="phone" required>
+				</div>
+
+				<div class="form-group">
+					<label for="email">メールアドレス</label>
+					<input type="email" id="email" name="email">
+				</div>
+
+				<div class="form-group">
+					<label for="people">人数 *</label>
+					<select id="people" name="people" required>
+						<option value="">選択してください</option>
+						<option value="1">1名</option>
+						<option value="2">2名</option>
+						<option value="3">3名</option>
+						<option value="4">4名</option>
+						<option value="5">5名以上</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="menu">希望メニュー *</label>
+					<select id="menu" name="menu" required>
+						<option value="">選択してください</option>
+						<option value="yakisoba">焼きそば (¥500)</option>
+						<option value="takoyaki">たこ焼き (¥400)</option>
+						<option value="karaage">からあげ (¥600)</option>
+						<option value="yakitori">焼き鳥 (¥300)</option>
+						<option value="drink">飲み物セット (¥200)</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="time">希望時間帯 *</label>
+					<select id="time" name="time" required>
+						<option value="">選択してください</option>
+						<option value="10:00-11:00">10:00-11:00</option>
+						<option value="11:00-12:00">11:00-12:00</option>
+						<option value="12:00-13:00">12:00-13:00</option>
+						<option value="13:00-14:00">13:00-14:00</option>
+						<option value="14:00-15:00">14:00-15:00</option>
+						<option value="15:00-16:00">15:00-16:00</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="notes">備考</label>
+					<textarea id="notes" name="notes" rows="3" placeholder="アレルギーや特別なご要望がございましたらご記入ください"></textarea>
+				</div>
+
+				<button type="submit" class="submit-btn">予約する</button>
+			</form>
+
+			<div id="result" class="result hidden"></div>
+		</div>
+	</main>
+
+	<script>
+		document.getElementById('reservationForm')?.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			
+			const formData = new FormData(e.target as HTMLFormElement);
+			const data = Object.fromEntries(formData.entries());
+			
+			const submitBtn = document.querySelector('.submit-btn') as HTMLButtonElement;
+			const resultDiv = document.getElementById('result');
+			
+			if (!resultDiv) return;
+			
+			submitBtn.disabled = true;
+			submitBtn.textContent = '予約中...';
+			
+			try {
+				const response = await fetch('/api/reserve', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify(data),
+				});
+				
+				const result = await response.json();
+				
+				if (response.ok) {
+					resultDiv.className = 'result success';
+					resultDiv.innerHTML = `
+						<h3>✅ 予約完了！</h3>
+						<p><strong>予約番号:</strong> ${result.reservationId}</p>
+						<p>予約番号は大切に保管してください。</p>
+						<p>当日、この番号をお持ちください。</p>
+						<button onclick="location.reload()" class="new-reservation-btn">新しい予約をする</button>
+					`;
+					(e.target as HTMLFormElement).reset();
+				} else {
+					throw new Error(result.error || '予約に失敗しました');
+				}
+			} catch (error) {
+				resultDiv.className = 'result error';
+				resultDiv.innerHTML = `
+					<h3>❌ エラーが発生しました</h3>
+					<p>${error instanceof Error ? error.message : '予約処理中にエラーが発生しました'}</p>
+					<button onclick="location.reload()" class="retry-btn">再試行</button>
+				`;
+			} finally {
+				submitBtn.disabled = false;
+				submitBtn.textContent = '予約する';
+				resultDiv.classList.remove('hidden');
+				resultDiv.scrollIntoView({ behavior: 'smooth' });
+			}
+		});
+	</script>
+
+	<style>
+		.container {
+			max-width: 600px;
+			margin: 0 auto;
+			padding: 2rem;
+		}
+
+		header {
+			text-align: center;
+			margin-bottom: 2rem;
+		}
+
+		header h1 {
+			color: #d97706;
+			font-size: 2.5rem;
+			margin-bottom: 0.5rem;
+		}
+
+		header p {
+			color: #6b7280;
+			font-size: 1.1rem;
+		}
+
+		.reservation-form {
+			background: white;
+			padding: 2rem;
+			border-radius: 12px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		}
+
+		.form-group {
+			margin-bottom: 1.5rem;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 0.5rem;
+			font-weight: 600;
+			color: #374151;
+		}
+
+		input, select, textarea {
+			width: 100%;
+			padding: 0.75rem;
+			border: 2px solid #e5e7eb;
+			border-radius: 8px;
+			font-size: 1rem;
+			transition: border-color 0.2s;
+		}
+
+		input:focus, select:focus, textarea:focus {
+			outline: none;
+			border-color: #d97706;
+		}
+
+		.submit-btn {
+			width: 100%;
+			background: #d97706;
+			color: white;
+			border: none;
+			padding: 1rem;
+			border-radius: 8px;
+			font-size: 1.1rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background-color 0.2s;
+		}
+
+		.submit-btn:hover:not(:disabled) {
+			background: #b45309;
+		}
+
+		.submit-btn:disabled {
+			background: #9ca3af;
+			cursor: not-allowed;
+		}
+
+		.result {
+			margin-top: 2rem;
+			padding: 1.5rem;
+			border-radius: 8px;
+			text-align: center;
+		}
+
+		.result.success {
+			background: #f0f9ff;
+			border: 2px solid #0ea5e9;
+			color: #0c4a6e;
+		}
+
+		.result.error {
+			background: #fef2f2;
+			border: 2px solid #ef4444;
+			color: #991b1b;
+		}
+
+		.result.hidden {
+			display: none;
+		}
+
+		.new-reservation-btn, .retry-btn {
+			margin-top: 1rem;
+			padding: 0.5rem 1rem;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+			font-weight: 500;
+		}
+
+		.new-reservation-btn {
+			background: #10b981;
+			color: white;
+		}
+
+		.retry-btn {
+			background: #ef4444;
+			color: white;
+		}
+
+		body {
+			background: linear-gradient(135deg, #fef3c7, #fed7aa);
+			min-height: 100vh;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		}
+	</style>
+</Layout>
