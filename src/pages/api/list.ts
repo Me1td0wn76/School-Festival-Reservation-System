@@ -1,7 +1,21 @@
 import type { APIRoute } from 'astro';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import type { Reservation } from './reserve';
+
+interface Reservation {
+  id: string;
+  name: string;
+  people: string;
+  storeId: string;
+  storeName: string;
+  menuId: string;
+  menuName: string;
+  menuPrice: number;
+  timeSlot: string;
+  notes: string;
+  createdAt: string;
+  status: 'active' | 'cancelled';
+}
 
 const RESERVATIONS_FILE = path.join(process.cwd(), 'public', 'reservations.json');
 // 環境変数からパスワードを取得、デフォルトは開発用
@@ -21,6 +35,7 @@ export const GET: APIRoute = async ({ request }) => {
   try {
     const url = new URL(request.url);
     const password = url.searchParams.get('password');
+    const storeId = url.searchParams.get('storeId');
     
     // パスワード認証
     if (password !== STAFF_PASSWORD) {
@@ -35,22 +50,31 @@ export const GET: APIRoute = async ({ request }) => {
     
     const reservations = await getReservations();
     
+    // 店舗IDでフィルタリング（指定された場合）
+    const filteredReservations = storeId 
+      ? reservations.filter(r => r.storeId === storeId)
+      : reservations;
+    
     // 予約を日時順でソート（新しいものから）
-    const sortedReservations = reservations.sort((a, b) => 
+    const sortedReservations = filteredReservations.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
     
     // 統計情報を計算
     const stats = {
-      total: reservations.length,
-      active: reservations.filter(r => r.status === 'active').length,
-      cancelled: reservations.filter(r => r.status === 'cancelled').length,
-      byMenu: reservations.reduce((acc, r) => {
-        acc[r.menu] = (acc[r.menu] || 0) + 1;
+      total: filteredReservations.length,
+      active: filteredReservations.filter(r => r.status === 'active').length,
+      cancelled: filteredReservations.filter(r => r.status === 'cancelled').length,
+      byStore: filteredReservations.reduce((acc, r) => {
+        acc[r.storeName] = (acc[r.storeName] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
-      byTime: reservations.reduce((acc, r) => {
-        acc[r.time] = (acc[r.time] || 0) + 1;
+      byMenu: filteredReservations.reduce((acc, r) => {
+        acc[r.menuName] = (acc[r.menuName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      byTime: filteredReservations.reduce((acc, r) => {
+        acc[r.timeSlot] = (acc[r.timeSlot] || 0) + 1;
         return acc;
       }, {} as Record<string, number>)
     };

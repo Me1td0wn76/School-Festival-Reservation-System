@@ -1,258 +1,395 @@
 ---
-import Layout from '../layouts/Layout.astro';
+const title = "学校祭 食事予約システム - 店舗選択";
 ---
 
-<Layout title="学校祭予約システム">
-	<main>
-		<div class="container">
-			<header>
-				<h1>🎪 学校祭 食事予約システム</h1>
-				<p>お食事の予約をお取りいたします。下記フォームにご記入ください。</p>
-			</header>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --primary-hover: #45a049;
+      --secondary-color: #FFC107;
+      --background-color: #f5f5f5;
+      --card-background: #ffffff;
+      --text-color: #333333;
+      --border-color: #ddd;
+      --error-color: #f44336;
+      --success-color: #4CAF50;
+    }
 
-			<form id="reservationForm" class="reservation-form">
-				<div class="form-group">
-					<label for="name">お名前 *</label>
-					<input type="text" id="name" name="name" required>
-				</div>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-				<div class="form-group">
-					<label for="phone">電話番号 *</label>
-					<input type="tel" id="phone" name="phone" required>
-				</div>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: var(--text-color);
+    }
 
-				<div class="form-group">
-					<label for="email">メールアドレス</label>
-					<input type="email" id="email" name="email">
-				</div>
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card-background);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
 
-				<div class="form-group">
-					<label for="people">人数 *</label>
-					<select id="people" name="people" required>
-						<option value="">選択してください</option>
-						<option value="1">1名</option>
-						<option value="2">2名</option>
-						<option value="3">3名</option>
-						<option value="4">4名</option>
-						<option value="5">5名以上</option>
-					</select>
-				</div>
+    .header {
+      background: var(--primary-color);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
 
-				<div class="form-group">
-					<label for="menu">希望メニュー *</label>
-					<select id="menu" name="menu" required>
-						<option value="">選択してください</option>
-						<option value="yakisoba">焼きそば (¥500)</option>
-						<option value="takoyaki">たこ焼き (¥400)</option>
-						<option value="karaage">からあげ (¥600)</option>
-						<option value="yakitori">焼き鳥 (¥300)</option>
-						<option value="drink">飲み物セット (¥200)</option>
-					</select>
-				</div>
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
 
-				<div class="form-group">
-					<label for="time">希望時間帯 *</label>
-					<select id="time" name="time" required>
-						<option value="">選択してください</option>
-						<option value="10:00-11:00">10:00-11:00</option>
-						<option value="11:00-12:00">11:00-12:00</option>
-						<option value="12:00-13:00">12:00-13:00</option>
-						<option value="13:00-14:00">13:00-14:00</option>
-						<option value="14:00-15:00">14:00-15:00</option>
-						<option value="15:00-16:00">15:00-16:00</option>
-					</select>
-				</div>
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
 
-				<div class="form-group">
-					<label for="notes">備考</label>
-					<textarea id="notes" name="notes" rows="3" placeholder="アレルギーや特別なご要望がございましたらご記入ください"></textarea>
-				</div>
+    .form-container {
+      padding: 40px;
+    }
 
-				<button type="submit" class="submit-btn">予約する</button>
-			</form>
+    .form-group {
+      margin-bottom: 25px;
+    }
 
-			<div id="result" class="result hidden"></div>
-		</div>
-	</main>
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
 
-	<script>
-		document.getElementById('reservationForm')?.addEventListener('submit', async (e) => {
-			e.preventDefault();
-			
-			const formData = new FormData(e.target as HTMLFormElement);
-			const data = Object.fromEntries(formData.entries());
-			
-			const submitBtn = document.querySelector('.submit-btn') as HTMLButtonElement;
-			const resultDiv = document.getElementById('result');
-			
-			if (!resultDiv) return;
-			
-			submitBtn.disabled = true;
-			submitBtn.textContent = '予約中...';
-			
-			try {
-				const response = await fetch('/api/reserve', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(data),
-				});
-				
-				const result = await response.json();
-				
-				if (response.ok) {
-					resultDiv.className = 'result success';
-					resultDiv.innerHTML = `
-						<h3>✅ 予約完了！</h3>
-						<p><strong>予約番号:</strong> ${result.reservationId}</p>
-						<p>予約番号は大切に保管してください。</p>
-						<p>当日、この番号をお持ちください。</p>
-						<button onclick="location.reload()" class="new-reservation-btn">新しい予約をする</button>
-					`;
-					(e.target as HTMLFormElement).reset();
-				} else {
-					throw new Error(result.error || '予約に失敗しました');
-				}
-			} catch (error) {
-				resultDiv.className = 'result error';
-				resultDiv.innerHTML = `
-					<h3>❌ エラーが発生しました</h3>
-					<p>${error instanceof Error ? error.message : '予約処理中にエラーが発生しました'}</p>
-					<button onclick="location.reload()" class="retry-btn">再試行</button>
-				`;
-			} finally {
-				submitBtn.disabled = false;
-				submitBtn.textContent = '予約する';
-				resultDiv.classList.remove('hidden');
-				resultDiv.scrollIntoView({ behavior: 'smooth' });
-			}
-		});
-	</script>
+    .required {
+      color: var(--error-color);
+    }
 
-	<style>
-		.container {
-			max-width: 600px;
-			margin: 0 auto;
-			padding: 2rem;
-		}
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
 
-		header {
-			text-align: center;
-			margin-bottom: 2rem;
-		}
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
 
-		header h1 {
-			color: #d97706;
-			font-size: 2.5rem;
-			margin-bottom: 0.5rem;
-		}
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
 
-		header p {
-			color: #6b7280;
-			font-size: 1.1rem;
-		}
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
 
-		.reservation-form {
-			background: white;
-			padding: 2rem;
-			border-radius: 12px;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-		}
+    .stores-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
 
-		.form-group {
-			margin-bottom: 1.5rem;
-		}
+    .store-card {
+      background: var(--card-background);
+      border: 3px solid var(--border-color);
+      border-radius: 15px;
+      padding: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
 
-		label {
-			display: block;
-			margin-bottom: 0.5rem;
-			font-weight: 600;
-			color: #374151;
-		}
+    .store-card:hover {
+      border-color: var(--primary-color);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+    }
 
-		input, select, textarea {
-			width: 100%;
-			padding: 0.75rem;
-			border: 2px solid #e5e7eb;
-			border-radius: 8px;
-			font-size: 1rem;
-			transition: border-color 0.2s;
-		}
+    .store-card h2 {
+      font-size: 1.8rem;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+    }
 
-		input:focus, select:focus, textarea:focus {
-			outline: none;
-			border-color: #d97706;
-		}
+    .store-card p {
+      font-size: 1.1rem;
+      color: #666;
+      margin-bottom: 20px;
+    }
 
-		.submit-btn {
-			width: 100%;
-			background: #d97706;
-			color: white;
-			border: none;
-			padding: 1rem;
-			border-radius: 8px;
-			font-size: 1.1rem;
-			font-weight: 600;
-			cursor: pointer;
-			transition: background-color 0.2s;
-		}
+    .store-info {
+      margin-bottom: 20px;
+    }
 
-		.submit-btn:hover:not(:disabled) {
-			background: #b45309;
-		}
+    .store-info .menu-count {
+      color: var(--secondary-color);
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
 
-		.submit-btn:disabled {
-			background: #9ca3af;
-			cursor: not-allowed;
-		}
+    .store-info .time-info {
+      color: #888;
+      font-size: 0.9rem;
+    }
 
-		.result {
-			margin-top: 2rem;
-			padding: 1.5rem;
-			border-radius: 8px;
-			text-align: center;
-		}
+    .select-btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
 
-		.result.success {
-			background: #f0f9ff;
-			border: 2px solid #0ea5e9;
-			color: #0c4a6e;
-		}
+    .select-btn:hover {
+      background: var(--primary-hover);
+    }
 
-		.result.error {
-			background: #fef2f2;
-			border: 2px solid #ef4444;
-			color: #991b1b;
-		}
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
 
-		.result.hidden {
-			display: none;
-		}
+    .menu-item {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
 
-		.new-reservation-btn, .retry-btn {
-			margin-top: 1rem;
-			padding: 0.5rem 1rem;
-			border: none;
-			border-radius: 6px;
-			cursor: pointer;
-			font-weight: 500;
-		}
+    .menu-item:hover {
+      border-color: var(--secondary-color);
+      transform: translateY(-1px);
+    }
 
-		.new-reservation-btn {
-			background: #10b981;
-			color: white;
-		}
+    .menu-item.selected {
+      border-color: var(--secondary-color);
+      background-color: rgba(255, 193, 7, 0.1);
+    }
 
-		.retry-btn {
-			background: #ef4444;
-			color: white;
-		}
+    .menu-item h4 {
+      font-size: 1rem;
+      margin-bottom: 5px;
+    }
 
-		body {
-			background: linear-gradient(135deg, #fef3c7, #fed7aa);
-			min-height: 100vh;
-			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-		}
-	</style>
-</Layout>
+    .menu-item .price {
+      font-weight: bold;
+      color: var(--secondary-color);
+      font-size: 1.1rem;
+    }
+
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .time-slot {
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .time-slot:hover {
+      border-color: var(--primary-color);
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+
+    .time-slot.selected {
+      border-color: var(--primary-color);
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 30px;
+    }
+
+    .submit-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .message.error {
+      background-color: #ffebee;
+      color: var(--error-color);
+      border: 1px solid #ffcdd2;
+    }
+
+    .message.success {
+      background-color: #e8f5e8;
+      color: var(--success-color);
+      border: 1px solid #c8e6c9;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .store-selection {
+        grid-template-columns: 1fr;
+      }
+      
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .time-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .form-container {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎪 学校祭 食事予約</h1>
+      <p>ご利用になりたい店舗をお選びください</p>
+    </div>
+
+    <div class="form-container">
+      <div class="stores-grid" id="storesGrid">
+        <!-- 店舗カードがここに動的に追加されます -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    interface Store {
+      id: string;
+      name: string;
+      description: string;
+      menus: Array<{
+        id: string;
+        name: string;
+        price: number;
+      }>;
+      timeSlots: string[];
+    }
+
+    let stores: Store[] = [];
+
+    // ページ読み込み時に店舗データを取得
+    async function loadStores(): Promise<void> {
+      try {
+        const response = await fetch('/api/stores');
+        const data = await response.json();
+        stores = data.stores;
+        renderStores();
+      } catch (error) {
+        console.error('店舗データの読み込みに失敗しました:', error);
+      }
+    }
+
+    // 店舗カードを表示
+    function renderStores(): void {
+      const container = document.getElementById('storesGrid');
+      if (!container) return;
+      
+      container.innerHTML = '';
+
+      stores.forEach((store: Store) => {
+        const storeCard = document.createElement('div');
+        storeCard.className = 'store-card';
+        storeCard.innerHTML = `
+          <h2>${store.name}</h2>
+          <p>${store.description}</p>
+          <div class="store-info">
+            <div class="menu-count">${store.menus.length}種類のメニュー</div>
+            <div class="time-info">${store.timeSlots.length}つの時間帯</div>
+          </div>
+          <button class="select-btn" onclick="selectStore('${store.id}')">
+            この店舗で予約する
+          </button>
+        `;
+        container.appendChild(storeCard);
+      });
+    }
+
+    // 店舗選択
+    function selectStore(storeId: string): void {
+      // 選択した店舗の予約ページにリダイレクト
+      window.location.href = `/reserve/${storeId}`;
+    }
+
+    // ページ読み込み時に店舗データを読み込み
+    loadStores();
+
+    // グローバル関数として登録
+    (window as any).selectStore = selectStore;
+  </script>
+</body>
+</html>

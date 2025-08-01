@@ -1,0 +1,532 @@
+---
+export function getStaticPaths() {
+  return [
+    { params: { storeId: 'yakisoba-stand' } },
+    { params: { storeId: 'takoyaki-corner' } },
+    { params: { storeId: 'karaage-shop' } },
+    { params: { storeId: 'drink-stand' } }
+  ];
+}
+
+const { storeId } = Astro.params;
+const title = "予約フォーム";
+---
+
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --primary-hover: #45a049;
+      --secondary-color: #FFC107;
+      --background-color: #f5f5f5;
+      --card-background: #ffffff;
+      --text-color: #333333;
+      --border-color: #ddd;
+      --error-color: #f44336;
+      --success-color: #4CAF50;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: var(--text-color);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card-background);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: var(--primary-color);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .store-header {
+      background: linear-gradient(135deg, var(--secondary-color), #FF6F00);
+      color: white;
+      padding: 20px 30px;
+      text-align: center;
+    }
+
+    .store-header h2 {
+      font-size: 1.8rem;
+      margin-bottom: 5px;
+    }
+
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .form-container {
+      padding: 40px;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .required {
+      color: var(--error-color);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .menu-item {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .menu-item:hover {
+      border-color: var(--secondary-color);
+      transform: translateY(-1px);
+    }
+
+    .menu-item.selected {
+      border-color: var(--secondary-color);
+      background-color: rgba(255, 193, 7, 0.1);
+    }
+
+    .menu-item h4 {
+      font-size: 1rem;
+      margin-bottom: 5px;
+    }
+
+    .menu-item .price {
+      font-weight: bold;
+      color: var(--secondary-color);
+      font-size: 1.1rem;
+    }
+
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .time-slot {
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .time-slot:hover {
+      border-color: var(--primary-color);
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+
+    .time-slot.selected {
+      border-color: var(--primary-color);
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 30px;
+    }
+
+    .submit-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .message.error {
+      background-color: #ffebee;
+      color: var(--error-color);
+      border: 1px solid #ffcdd2;
+    }
+
+    .message.success {
+      background-color: #e8f5e8;
+      color: var(--success-color);
+      border: 1px solid #c8e6c9;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .time-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .form-container {
+        padding: 20px;
+      }
+
+      .back-btn {
+        position: static;
+        margin-bottom: 20px;
+        display: block;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header" style="position: relative;">
+      <a href="/" class="back-btn">← 店舗選択に戻る</a>
+      <h1>🍽️ 予約フォーム</h1>
+      <p>お客様情報とご希望をお聞かせください</p>
+    </div>
+
+    <div id="storeHeader" class="store-header">
+      <!-- 店舗情報がここに表示されます -->
+    </div>
+
+    <div class="form-container">
+      <div id="message" class="message hidden"></div>
+
+      <form id="reservationForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">お名前 <span class="required">*</span></label>
+            <input type="text" id="name" name="name" required>
+          </div>
+          <div class="form-group">
+            <label for="people">人数 <span class="required">*</span></label>
+            <select id="people" name="people" required>
+              <option value="">選択してください</option>
+              <option value="1">1名</option>
+              <option value="2">2名</option>
+              <option value="3">3名</option>
+              <option value="4">4名</option>
+              <option value="5">5名</option>
+              <option value="6">6名以上</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>メニュー選択 <span class="required">*</span></label>
+          <div id="menuSelection" class="menu-grid">
+            <!-- メニューがここに動的に追加されます -->
+          </div>
+          <input type="hidden" id="storeId" name="storeId" value="{storeId}">
+          <input type="hidden" id="menuId" name="menuId" required>
+        </div>
+
+        <div class="form-group">
+          <label>受け取り時間 <span class="required">*</span></label>
+          <div id="timeSelection" class="time-grid">
+            <!-- 時間帯がここに動的に追加されます -->
+          </div>
+          <input type="hidden" id="timeSlot" name="timeSlot" required>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">備考・アレルギー情報など</label>
+          <textarea id="notes" name="notes" placeholder="アレルギーや特別な要望があれば記入してください"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">予約を確定する</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    interface Menu {
+      id: string;
+      name: string;
+      price: number;
+    }
+
+    interface Store {
+      id: string;
+      name: string;
+      description: string;
+      menus: Menu[];
+      timeSlots: string[];
+    }
+
+    const storeId = '{storeId}';
+    let storeData: Store | null = null;
+
+    // ページ読み込み時に店舗データを取得
+    async function loadStoreData(): Promise<void> {
+      try {
+        const response = await fetch(`/api/stores?storeId=${storeId}`);
+        const data = await response.json();
+        storeData = data.store;
+        
+        if (storeData) {
+          const storeHeader = document.getElementById('storeHeader');
+          if (storeHeader) {
+            storeHeader.innerHTML = `
+              <h2>${storeData.name}</h2>
+              <p>${storeData.description}</p>
+            `;
+          }
+          renderMenus();
+          renderTimeSlots();
+        }
+      } catch (error) {
+        showMessage('店舗データの読み込みに失敗しました', 'error');
+      }
+    }
+
+    // メニュー表示
+    function renderMenus(): void {
+      const container = document.getElementById('menuSelection');
+      if (!container || !storeData) return;
+
+      container.innerHTML = '';
+
+      storeData.menus.forEach((menu: Menu) => {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'menu-item';
+        menuItem.dataset.menuId = menu.id;
+        menuItem.innerHTML = `
+          <h4>${menu.name}</h4>
+          <div class="price">¥${menu.price}</div>
+        `;
+        
+        menuItem.addEventListener('click', () => selectMenu(menu));
+        container.appendChild(menuItem);
+      });
+    }
+
+    // メニュー選択
+    function selectMenu(menu: Menu): void {
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+
+      const selectedElement = document.querySelector(`[data-menu-id="${menu.id}"]`);
+      const menuIdInput = document.getElementById('menuId') as HTMLInputElement;
+      
+      if (selectedElement) {
+        selectedElement.classList.add('selected');
+      }
+      if (menuIdInput) {
+        menuIdInput.value = menu.id;
+      }
+    }
+
+    // 時間帯表示
+    function renderTimeSlots(): void {
+      const container = document.getElementById('timeSelection');
+      if (!container || !storeData) return;
+
+      container.innerHTML = '';
+
+      storeData.timeSlots.forEach((timeSlot: string) => {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'time-slot';
+        timeElement.dataset.timeSlot = timeSlot;
+        timeElement.textContent = timeSlot;
+        
+        timeElement.addEventListener('click', () => selectTimeSlot(timeSlot));
+        container.appendChild(timeElement);
+      });
+    }
+
+    // 時間帯選択
+    function selectTimeSlot(timeSlot: string): void {
+      document.querySelectorAll('.time-slot').forEach(slot => {
+        slot.classList.remove('selected');
+      });
+
+      const selectedElement = document.querySelector(`[data-time-slot="${timeSlot}"]`);
+      const timeSlotInput = document.getElementById('timeSlot') as HTMLInputElement;
+      
+      if (selectedElement) {
+        selectedElement.classList.add('selected');
+      }
+      if (timeSlotInput) {
+        timeSlotInput.value = timeSlot;
+      }
+    }
+
+    // メッセージ表示
+    function showMessage(text: string, type: string = 'info'): void {
+      const messageDiv = document.getElementById('message');
+      if (!messageDiv) return;
+      
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.classList.remove('hidden');
+      
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 5000);
+    }
+
+    // フォーム送信
+    const reservationForm = document.getElementById('reservationForm');
+    if (reservationForm) {
+      reservationForm.addEventListener('submit', async (e: Event) => {
+        e.preventDefault();
+        
+        const form = e.target as HTMLFormElement;
+        const submitBtn = form.querySelector('.submit-btn') as HTMLButtonElement;
+        
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '予約処理中...';
+        }
+
+        try {
+          const formData = new FormData(form);
+          const response = await fetch('/api/reserve', {
+            method: 'POST',
+            body: formData
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            showMessage(`予約が完了しました！予約番号: ${result.reservationId}`, 'success');
+            form.reset();
+            document.querySelectorAll('.menu-item').forEach(item => {
+              item.classList.remove('selected');
+            });
+            document.querySelectorAll('.time-slot').forEach(slot => {
+              slot.classList.remove('selected');
+            });
+          } else {
+            showMessage(result.message || '予約に失敗しました', 'error');
+          }
+        } catch (error) {
+          showMessage('予約処理中にエラーが発生しました', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '予約を確定する';
+          }
+        }
+      });
+    }
+
+    // ページ読み込み時に店舗データを読み込み
+    loadStoreData();
+  </script>
+</body>
+</html>

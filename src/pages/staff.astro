@@ -72,14 +72,13 @@ import Layout from '../layouts/Layout.astro';
 		interface Reservation {
 			id: string;
 			name: string;
-			phone: string;
-			email?: string;
-			people: string;
-			menu: string;
-			time: string;
-			notes?: string;
-			createdAt: string;
+			people: number;
+			storeId: string;
+			menuName: string;
+			menuPrice: number;
+			timeSlot: string;
 			status: 'active' | 'cancelled';
+			createdAt: string;
 		}
 
 		interface Stats {
@@ -261,15 +260,7 @@ import Layout from '../layouts/Layout.astro';
 			const topMenu = Object.entries(statsData.byMenu)
 				.sort(([,a], [,b]) => (b as number) - (a as number))[0];
 			
-			const menuNames: Record<string, string> = {
-				yakisoba: '焼きそば',
-				takoyaki: 'たこ焼き',
-				karaage: 'からあげ',
-				yakitori: '焼き鳥',
-				drink: '飲み物セット'
-			};
-			
-			return `${menuNames[topMenu[0]] || topMenu[0]} (${topMenu[1]}件)`;
+			return `${topMenu[0]} (${topMenu[1]}件)`;
 		}
 
 		function populateFilters() {
@@ -279,14 +270,7 @@ import Layout from '../layouts/Layout.astro';
 			if (menuFilter) {
 				menuFilter.innerHTML = '<option value="all">すべてのメニュー</option>';
 				Object.keys(statsData?.byMenu || {}).forEach(menu => {
-					const menuNames: Record<string, string> = {
-						yakisoba: '焼きそば',
-						takoyaki: 'たこ焼き',
-						karaage: 'からあげ',
-						yakitori: '焼き鳥',
-						drink: '飲み物セット'
-					};
-					menuFilter.innerHTML += `<option value="${menu}">${menuNames[menu] || menu}</option>`;
+					menuFilter.innerHTML += `<option value="${menu}">${menu}</option>`;
 				});
 			}
 			
@@ -310,11 +294,11 @@ import Layout from '../layouts/Layout.astro';
 			}
 			
 			if (menuFilter !== 'all') {
-				filtered = filtered.filter(r => r.menu === menuFilter);
+				filtered = filtered.filter(r => r.menuName === menuFilter);
 			}
 			
 			if (timeFilter !== 'all') {
-				filtered = filtered.filter(r => r.time === timeFilter);
+				filtered = filtered.filter(r => r.timeSlot === timeFilter);
 			}
 			
 			renderReservations(filtered);
@@ -329,12 +313,11 @@ import Layout from '../layouts/Layout.astro';
 				return;
 			}
 			
-			const menuNames: Record<string, string> = {
-				yakisoba: '焼きそば',
-				takoyaki: 'たこ焼き',
-				karaage: 'からあげ',
-				yakitori: '焼き鳥',
-				drink: '飲み物セット'
+			const storeNames: Record<string, string> = {
+				yakisoba: '焼きそば店',
+				takoyaki: 'たこ焼き店',
+				karaage: 'から揚げ店',
+				drinks: 'ドリンク店'
 			};
 			
 			container.innerHTML = reservations.map(reservation => `
@@ -348,12 +331,11 @@ import Layout from '../layouts/Layout.astro';
 					<div class="reservation-body">
 						<div class="reservation-info">
 							<strong>👤 ${reservation.name}</strong>
-							<div>📞 ${reservation.phone}</div>
-							${reservation.email ? `<div>📧 ${reservation.email}</div>` : ''}
+							<div>🏪 ${storeNames[reservation.storeId] || reservation.storeId}</div>
 							<div>👥 ${reservation.people}名</div>
-							<div>🍽️ ${menuNames[reservation.menu] || reservation.menu}</div>
-							<div>⏰ ${reservation.time}</div>
-							${reservation.notes ? `<div>📝 ${reservation.notes}</div>` : ''}
+							<div>🍽️ ${reservation.menuName}</div>
+							<div>💰 ¥${(reservation.menuPrice * reservation.people).toLocaleString()}</div>
+							<div>⏰ ${reservation.timeSlot}</div>
 							<div class="reservation-date">📅 ${new Date(reservation.createdAt).toLocaleString('ja-JP')}</div>
 						</div>
 						${reservation.status === 'active' ? `

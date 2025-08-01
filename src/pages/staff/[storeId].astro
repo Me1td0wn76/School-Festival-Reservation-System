@@ -1,0 +1,565 @@
+---
+export function getStaticPaths() {
+  return [
+    { params: { storeId: 'yakisoba-stand' } },
+    { params: { storeId: 'takoyaki-corner' } },
+    { params: { storeId: 'karaage-shop' } },
+    { params: { storeId: 'drink-stand' } }
+  ];
+}
+
+const { storeId } = Astro.params;
+const title = "店舗管理画面";
+---
+
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <style>
+    :root {
+      --primary-color: #2196F3;
+      --primary-hover: #1976D2;
+      --secondary-color: #FF9800;
+      --background-color: #f5f5f5;
+      --card-background: #ffffff;
+      --text-color: #333333;
+      --border-color: #ddd;
+      --error-color: #f44336;
+      --success-color: #4CAF50;
+      --warning-color: #FF9800;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
+      background: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: var(--card-background);
+      border-radius: 10px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .header h1 {
+      color: var(--primary-color);
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .login-section {
+      background: var(--card-background);
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .dashboard {
+      display: none;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--card-background);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .stat-card h3 {
+      color: var(--primary-color);
+      font-size: 2rem;
+      margin-bottom: 5px;
+    }
+
+    .stat-card p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .reservations-section {
+      background: var(--card-background);
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .section-header h2 {
+      color: var(--text-color);
+    }
+
+    .refresh-btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .reservations-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .reservations-table th,
+    .reservations-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .reservations-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+    }
+
+    .status-active {
+      color: var(--success-color);
+      font-weight: 600;
+    }
+
+    .status-cancelled {
+      color: var(--error-color);
+      font-weight: 600;
+    }
+
+    .cancel-btn {
+      background: var(--error-color);
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .cancel-btn:hover {
+      background: #d32f2f;
+    }
+
+    .cancel-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .login-btn {
+      width: 100%;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .login-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .message {
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .message.error {
+      background-color: #ffebee;
+      color: var(--error-color);
+      border: 1px solid #ffcdd2;
+    }
+
+    .message.success {
+      background-color: #e8f5e8;
+      color: var(--success-color);
+      border: 1px solid #c8e6c9;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .store-info {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .store-info h2 {
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .reservations-table {
+        font-size: 14px;
+      }
+      
+      .reservations-table th,
+      .reservations-table td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏪 店舗管理システム</h1>
+      <p>予約状況の確認と管理</p>
+    </div>
+
+    <!-- ログインセクション -->
+    <div id="loginSection" class="login-section">
+      <h2>スタッフログイン</h2>
+      <div id="message" class="message hidden"></div>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="password">パスワード</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="login-btn">ログイン</button>
+      </form>
+    </div>
+
+    <!-- ダッシュボードセクション -->
+    <div id="dashboard" class="dashboard">
+      <div id="storeInfo" class="store-info">
+        <!-- 店舗情報がここに表示されます -->
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3 id="totalReservations">0</h3>
+          <p>総予約数</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="activeReservations">0</h3>
+          <p>有効な予約</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="cancelledReservations">0</h3>
+          <p>キャンセル</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="todayReservations">0</h3>
+          <p>本日の予約</p>
+        </div>
+      </div>
+
+      <div class="reservations-section">
+        <div class="section-header">
+          <h2>予約一覧</h2>
+          <button id="refreshBtn" class="refresh-btn">更新</button>
+        </div>
+        
+        <table class="reservations-table" id="reservationsTable">
+          <thead>
+            <tr>
+              <th>予約番号</th>
+              <th>お名前</th>
+              <th>人数</th>
+              <th>メニュー</th>
+              <th>時間帯</th>
+              <th>金額</th>
+              <th>予約日時</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 予約データがここに動的に追加されます -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    interface Store {
+      id: string;
+      name: string;
+      description: string;
+      menus: Array<{
+        id: string;
+        name: string;
+        price: number;
+      }>;
+      timeSlots: string[];
+    }
+
+    interface Reservation {
+      id: string;
+      name: string;
+      people: string;
+      storeId: string;
+      storeName: string;
+      menuId: string;
+      menuName: string;
+      menuPrice: number;
+      timeSlot: string;
+      notes: string;
+      createdAt: string;
+      status: 'active' | 'cancelled';
+    }
+
+    interface Stats {
+      total: number;
+      active: number;
+      cancelled: number;
+      byStore: Record<string, number>;
+      byMenu: Record<string, number>;
+      byTime: Record<string, number>;
+    }
+
+    const storeId = '{storeId}';
+    let currentPassword = '';
+    let storeData: Store | null = null;
+
+    // ページ読み込み時に店舗データを取得
+    async function loadStoreData(): Promise<void> {
+      try {
+        const response = await fetch(`/api/stores?storeId=${storeId}`);
+        const data = await response.json();
+        storeData = data.store;
+        
+        if (storeData) {
+          const storeInfoEl = document.getElementById('storeInfo');
+          if (storeInfoEl) {
+            storeInfoEl.innerHTML = `
+              <h2>${storeData.name}</h2>
+              <p>${storeData.description}</p>
+            `;
+          }
+        }
+      } catch (error) {
+        console.error('店舗データの読み込みに失敗しました:', error);
+      }
+    }
+
+    // メッセージ表示
+    function showMessage(text: string, type: string = 'info'): void {
+      const messageDiv = document.getElementById('message');
+      if (!messageDiv) return;
+      
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.classList.remove('hidden');
+      
+      setTimeout(() => {
+        messageDiv.classList.add('hidden');
+      }, 5000);
+    }
+
+    // ログイン処理
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e: Event) => {
+        e.preventDefault();
+        
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+        if (!passwordInput) return;
+        
+        const password = passwordInput.value;
+        currentPassword = password;
+        
+        try {
+          const response = await fetch(`/api/list?password=${encodeURIComponent(password)}&storeId=${storeId}`);
+          
+          if (response.ok) {
+            const loginSection = document.getElementById('loginSection');
+            const dashboard = document.getElementById('dashboard');
+            
+            if (loginSection) loginSection.style.display = 'none';
+            if (dashboard) dashboard.style.display = 'block';
+            
+            loadReservations();
+          } else {
+            showMessage('パスワードが正しくありません', 'error');
+          }
+        } catch (error) {
+          showMessage('ログインに失敗しました', 'error');
+        }
+      });
+    }
+
+    // 予約データ読み込み
+    async function loadReservations(): Promise<void> {
+      try {
+        const response = await fetch(`/api/list?password=${encodeURIComponent(currentPassword)}&storeId=${storeId}`);
+        const data = await response.json();
+        
+        if (data.error) {
+          showMessage(data.error, 'error');
+          return;
+        }
+
+        updateStats(data.stats);
+        updateReservationsTable(data.reservations);
+        
+      } catch (error) {
+        console.error('予約データの読み込みに失敗しました:', error);
+      }
+    }
+
+    // 統計情報更新
+    function updateStats(stats: Stats): void {
+      const totalEl = document.getElementById('totalReservations');
+      const activeEl = document.getElementById('activeReservations');
+      const cancelledEl = document.getElementById('cancelledReservations');
+      const todayEl = document.getElementById('todayReservations');
+      
+      if (totalEl) totalEl.textContent = String(stats?.total || 0);
+      if (activeEl) activeEl.textContent = String(stats?.active || 0);
+      if (cancelledEl) cancelledEl.textContent = String(stats?.cancelled || 0);
+      if (todayEl) todayEl.textContent = String(stats?.total || 0);
+    }
+
+    // 予約テーブル更新
+    function updateReservationsTable(reservations: Reservation[]): void {
+      const tbody = document.querySelector('#reservationsTable tbody');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+
+      reservations.forEach((reservation: Reservation) => {
+        const row = document.createElement('tr');
+        const createdDate = new Date(reservation.createdAt).toLocaleString('ja-JP');
+        const statusClass = reservation.status === 'active' ? 'status-active' : 'status-cancelled';
+        
+        row.innerHTML = `
+          <td>${reservation.id.substring(0, 8)}...</td>
+          <td>${reservation.name}</td>
+          <td>${reservation.people}名</td>
+          <td>${reservation.menuName}</td>
+          <td>${reservation.timeSlot}</td>
+          <td>¥${reservation.menuPrice}</td>
+          <td>${createdDate}</td>
+          <td class="${statusClass}">${reservation.status === 'active' ? '有効' : 'キャンセル'}</td>
+          <td>
+            ${reservation.status === 'active' ? 
+              `<button class="cancel-btn" onclick="cancelReservation('${reservation.id}')">キャンセル</button>` : 
+              '-'
+            }
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    // 予約キャンセル
+    async function cancelReservation(reservationId: string): Promise<void> {
+      if (!confirm('この予約をキャンセルしますか？')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/list', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'cancel',
+            reservationId: reservationId,
+            password: currentPassword
+          })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          showMessage('予約をキャンセルしました', 'success');
+          loadReservations(); // データを再読み込み
+        } else {
+          showMessage(result.message || 'キャンセルに失敗しました', 'error');
+        }
+      } catch (error) {
+        showMessage('キャンセル処理に失敗しました', 'error');
+      }
+    }
+
+    // 更新ボタン
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', loadReservations);
+    }
+
+    // ページ読み込み時に店舗データを読み込み
+    loadStoreData();
+
+    // グローバル関数として登録
+    (window as any).cancelReservation = cancelReservation;
+  </script>
+</body>
+</html>

@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "b040e1ec-15c2-44cc-ab27-caa7d598bf51",
+    "name": "坂本龍勢",
+    "people": "1",
+    "storeId": "yakisoba-stand",
+    "storeName": "焼きそば屋台",
+    "menuId": "yakisoba-normal",
+    "menuName": "焼きそば（普通盛り）",
+    "menuPrice": 400,
+    "timeSlot": "11:00-11:15",
+    "notes": "",
+    "createdAt": "2025-08-01T03:11:16.636Z",
+    "status": "active"
+  }
+]
